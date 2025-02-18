@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import ConversationList from "@/components/ConversationList"
-import ChatWindow from "@/components/ChatWindow"
+import { useState } from "react"
+import ChatWindow from "./ChatWindow"
+
 
 export default function Home() {
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null)
@@ -24,4 +25,3 @@ export default function Home() {
     </div>
   )
 }
-

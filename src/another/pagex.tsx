@@ -1,0 +1,247 @@
+'use client'
+import { useEffect, useRef, useState, useCallback } from "react";
+
+interface Message {
+  id: number;
+  body: string;
+}
+
+function useInfiniteScroll(fetchUrl: string) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeight = useRef(0);
+  const isUserAtBottom = useRef(true);
+
+  const fetchMessages = useCallback(async () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${fetchUrl}?_page=${page}&_limit=10`);
+      const data = await res.json();
+      if (data.length === 0) {
+        setHasMore(false);
+      } else {
+        prevScrollHeight.current = containerRef.current?.scrollHeight || 0;
+        setMessages((prev) => [...data.reverse(), ...prev]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch messages", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, loading, hasMore, fetchUrl]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [page]);
+
+  useEffect(() => {
+    if (containerRef.current && isUserAtBottom.current) {
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (containerRef.current && page > 1) {
+      const scrollDiff = containerRef.current.scrollHeight - prevScrollHeight.current;
+      containerRef.current.scrollTop += scrollDiff;
+    }
+  }, [messages]);
+
+  const handleScroll = useCallback(() => {
+    if (containerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      isUserAtBottom.current = scrollTop + clientHeight >= scrollHeight - 10;
+      if (scrollTop === 0 && !loading && hasMore) {
+        setPage((prev) => prev + 1);
+      }
+    }
+  }, [loading, hasMore]);
+
+  const addMessage = (body: string) => {
+    setMessages((prev) => [...prev, { id: Date.now(), body }]);
+    setTimeout(() => {
+      if (containerRef.current && isUserAtBottom.current) {
+        containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  return { messages, loading, hasMore, containerRef, handleScroll, addMessage };
+}
+
+export default function Messenger() {
+  const { messages, loading, containerRef, handleScroll, addMessage } = useInfiniteScroll(
+    "https://jsonplaceholder.typicode.com/comments"
+  );
+  const [input, setInput] = useState("");
+
+  const handleSendMessage = () => {
+    if (input.trim()) {
+      addMessage(input.trim());
+      setInput("");
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100 p-4">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto bg-white p-4 rounded-lg shadow-md"
+        style={{ height: "80vh" }}
+      >
+        {loading && <div className="text-center text-gray-500">Loading...</div>}
+        {messages.map((msg) => (
+          <div key={msg.id} className="p-2 my-2 bg-blue-500 text-white rounded-lg w-max max-w-xs">
+            {msg.body}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 p-2 border rounded-lg"
+        />
+        <button
+          onClick={handleSendMessage}
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import { useEffect, useRef, useState, useCallback } from "react";
+
+// interface Message {
+//   id: number;
+//   body: string;
+// }
+
+// function useInfiniteScroll(fetchUrl: string) {
+//   const [messages, setMessages] = useState<Message[]>([]);
+//   const [page, setPage] = useState(1);
+//   const [loading, setLoading] = useState(false);
+//   const [hasMore, setHasMore] = useState(true);
+//   const containerRef = useRef<HTMLDivElement>(null);
+//   const prevScrollHeight = useRef(0);
+
+//   const fetchMessages = useCallback(async () => {
+//     if (loading || !hasMore) return;
+//     setLoading(true);
+//     try {
+//       const res = await fetch(`${fetchUrl}?_page=${page}&_limit=10`);
+//       const data = await res.json();
+//       if (data.length === 0) {
+//         setHasMore(false);
+//       } else {
+//         setMessages((prev) => [...data.reverse(), ...prev]);
+//       }
+//     } catch (error) {
+//       console.error("Failed to fetch messages", error);
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [page, loading, hasMore, fetchUrl]);
+
+//   useEffect(() => {
+//     fetchMessages();
+//   }, [page]);
+
+//   useEffect(() => {
+//     if (containerRef.current) {
+//       containerRef.current.scrollTop = containerRef.current.scrollHeight - prevScrollHeight.current;
+//     }
+//   }, [messages]);
+
+//   const handleScroll = useCallback(() => {
+//     if (containerRef.current) {
+//       const { scrollTop, scrollHeight } = containerRef.current;
+//       prevScrollHeight.current = scrollHeight;
+//       if (scrollTop === 0 && !loading && hasMore) {
+//         setPage((prev) => prev + 1);
+//       }
+//     }
+//   }, [loading, hasMore]);
+
+//   const addMessage = (body: string) => {
+//     setMessages((prev) => [...prev, { id: Date.now(), body }]);
+//     setTimeout(() => {
+//       if (containerRef.current) {
+//         containerRef.current.scrollTop = containerRef.current.scrollHeight;
+//       }
+//     }, 100);
+//   };
+
+//   return { messages, loading, hasMore, containerRef, handleScroll, addMessage };
+// }
+
+// export default function Messenger() {
+//   const { messages, loading, containerRef, handleScroll, addMessage } = useInfiniteScroll(
+//     "https://jsonplaceholder.typicode.com/comments"
+//   );
+//   const [input, setInput] = useState("");
+
+//   const handleSendMessage = () => {
+//     if (input.trim()) {
+//       addMessage(input.trim());
+//       setInput("");
+//     }
+//   };
+
+//   return (
+//     <div className="flex flex-col h-screen bg-gray-100 p-4">
+//       <div
+//         ref={containerRef}
+//         onScroll={handleScroll}
+//         className="flex-1 overflow-y-auto bg-white p-4 rounded-lg shadow-md"
+//         style={{ height: "80vh" }}
+//       >
+//         {loading && <div className="text-center text-gray-500">Loading...</div>}
+//         {messages.map((msg) => (
+//           <div key={msg.id} className="p-2 my-2 bg-blue-500 text-white rounded-lg w-max max-w-xs">
+//             {msg.body}
+//           </div>
+//         ))}
+//       </div>
+//       <div className="mt-4 flex gap-2">
+//         <input
+//           type="text"
+//           value={input}
+//           onChange={(e) => setInput(e.target.value)}
+//           placeholder="Type a message..."
+//           className="flex-1 p-2 border rounded-lg"
+//         />
+//         <button
+//           onClick={handleSendMessage}
+//           className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+//         >
+//           Send
+//         </button>
+//       </div>
+//     </div>
+//   );
+// }
